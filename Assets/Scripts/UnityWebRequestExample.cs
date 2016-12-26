@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using System.Text;
 using System.Collections;
 using UnityEngine.Networking;
@@ -24,6 +25,8 @@ class CreateUserAck
 
 public class UnityWebRequestExample : MonoBehaviour {
 
+	public Text text;
+
 	// Use this for initialization
 	void Start () {
 		StartCoroutine(Post());
@@ -42,12 +45,15 @@ public class UnityWebRequestExample : MonoBehaviour {
 
 		if (www.isError)
 		{
-			Debug.Log(www.error);
+			text.text = www.error;
 		}
 		else
 		{
-			var bytes = www.downloadHandler.data;
-			Debug.Log(Encoding.UTF8.GetString(bytes));
+			var str = Encoding.UTF8.GetString(www.downloadHandler.data);
+			var type = str.Substring(2, 5);
+
+			var ack = JsonUtility.FromJson<CreateUserAck>(str.Substring(9, str.Length - 10));
+			text.text = ack.errCode.ToString();
 		}
 	}
 	
