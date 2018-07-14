@@ -1,27 +1,10 @@
-using UnityEngine;
-using UnityEngine.UI;
+using System;
 using System.Text;
 using System.Collections;
+
+using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.Networking;
-
-enum MsgType
-{
-	CREATE_USER_REQ = 11101,
-	CREATE_USER_ACK = 11102,
-}
-
-class CreateUserReq
-{
-	public MsgType msgType = MsgType.CREATE_USER_REQ;
-
-	public string userName;
-	public string passwd;
-}
-
-class CreateUserAck
-{
-	public ErrCode errCode;
-}
 
 public class UnityWebRequestExample : MonoBehaviour {
 
@@ -29,31 +12,41 @@ public class UnityWebRequestExample : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
-		StartCoroutine(Post());
+        var req = new UserCreateReq();
+        {
+            req.userName = "userName";
+            req.passwd = "passwd";
+        }
+        var ackType = MsgType.CREATE_USER_ACK;
+
+        StartCoroutine(Post<UserCreateReq, UserCreateAck>(req, (ack) => {
+            if (ackType == ack.msgType) {
+                text.text = ack.errCode.ToString();
+            }
+        }));
 	}
 
-	IEnumerator Post()
+    IEnumerator Post<T1, T2>(T1 req, Action<T2> callback)
 	{
-		var req = new CreateUserReq();
-		{
-			req.userName = "userName";
-			req.passwd = "passwd";
-		}
-		
-		var www = UnityWebRequest.Post("http://127.0.0.1:20000/", JsonUtility.ToJson(req));
-		yield return www.Send();
+        var str = JsonUtility.ToJson(req);
 
-		if (www.isError)
+        var uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(str));
+        uploadHandler.contentType = "application/json";
+		
+        var uwr = UnityWebRequest.Post("http://127.0.0.1:20000/", string.Empty);
+        uwr.uploadHandler = uploadHandler;
+        uwr.timeout = 3;
+
+        yield return uwr.SendWebRequest();
+
+        if (uwr.isNetworkError || uwr.isHttpError)
 		{
-			text.text = www.error;
+            Debug.Log(uwr.error);
 		}
 		else
 		{
-			var str = Encoding.UTF8.GetString(www.downloadHandler.data);
-			var type = str.Substring(2, 5);
-
-			var ack = JsonUtility.FromJson<CreateUserAck>(str.Substring(9, str.Length - 10));
-			text.text = ack.errCode.ToString();
+            var ack = JsonUtility.FromJson<T2>(uwr.downloadHandler.text);
+            callback(ack);
 		}
 	}
 	
